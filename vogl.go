@@ -130,10 +130,6 @@ func createTexture(imgWidth, imgHeight int, fill ...byte) (gl.Texture, error) {
 }
 
 
-func destroyScene() {
-
-}
-
 /*
 func VideoShaderSetup(shader int, width, height int) {
 
@@ -311,7 +307,16 @@ func newBuffer(bytes int) Buffer {
         BufferData(ARRAY_BUFFER, bytes, slice, STATIC_READ)
         return buf
 }
+
+
+func newBuffer(bytes int) gl.Buffer {
+        buf := gl.GenBuffer()
+        buf.Bind(gl.ARRAY_BUFFER)
+        gl.BufferData(gl.ARRAY_BUFFER, bytes, slice, gl.STATIC_READ)
+        return buf
+}
 */
+
 func initScene() {
     if (!*compatf) {
         // buffers []Buffer
@@ -340,12 +345,20 @@ func initScene() {
         }
 
         floatSize := unsafe.Sizeof(float32(0.0))
-        fmt.Printf("floatSize=%d\n", floatSize)
+        fmt.Printf("floatSize=%d, len(tri)=%d\n", floatSize, len(tri))
         gl.BufferData(gl.ARRAY_BUFFER, int(floatSize) * len(tri), tri, gl.STATIC_READ) // STATIC_DRAW
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#3") 
         }
 
+        result := make([]float32, len(tri))
+        gl.GetBufferSubData(gl.ARRAY_BUFFER, 0, int(floatSize) * len(tri), result)
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("#3a"+fmt.Sprintf("; e=0x%x", e))
+        }
+        fmt.Printf("len(result)=%d, result: %.02f\n", len(result), result)
+
+        vbo.Bind(gl.ARRAY_BUFFER)
         vshader := CompileShaderFromPath("./shaders/bare.vert", gl.VERTEX_SHADER)
         Link(vshader)
         vshader.Use()
@@ -370,6 +383,11 @@ func initScene() {
             panic("#6"+fmt.Sprintf("; e=0x%x", e))
         }
 
+        gl.DrawArrays(gl.TRIANGLES, 0, 3)
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("#7: gl.DrawArrays"+fmt.Sprintf("; e=0x%x", e))
+        }
+
 /*
         colattr := fshader.GetAttribLocation("color") // indx AttribLocation
         if e := gl.GetError(); e != gl.NO_ERROR {
@@ -386,17 +404,26 @@ func initScene() {
             panic("#10"+fmt.Sprintf("; e=0x%x", e))
         }
 */
-
-
-
     }
+}
+
+func destroyScene() {
+/*
+   glDeleteProgram(shaderProgram);
+    glDeleteShader(fragmentShader);
+    glDeleteShader(vertexShader);
+
+    glDeleteBuffers(1, &vbo);
+
+    glDeleteVertexArrays(1, &vao);
+*/
 }
 
 
 func drawScene() {
-    //var opt gl.GLbitfield = gl.COLOR_BUFFER_BIT // | gl.DEPTH_BUFFER_BIT
+    var opt gl.GLbitfield = gl.COLOR_BUFFER_BIT // | gl.DEPTH_BUFFER_BIT
     gl.ClearColor(0.8, 0.3, 0.3, 0.0) // sickly red
-    //gl.Clear(opt)
+    gl.Clear(opt)
     rect(-0.5, -0.5, 0.5, 0.5)
     return
 }
