@@ -197,7 +197,8 @@ func initGL(ton, lon, son bool, paths ...string) (err error) {
         }
     }
 
-    s := gl.GetString(gl.SHADING_LANGUAGE_VERSION) // SHADING_LANGUAGE_VERSION
+    glv := gl.GetString(gl.VERSION)
+    shv := gl.GetString(gl.SHADING_LANGUAGE_VERSION) // SHADING_LANGUAGE_VERSION 
     if e := gl.GetError(); e != gl.NO_ERROR {
         fmt.Printf("err=0x%x, gl.NO_ERROR=%d\n", e, gl.NO_ERROR)
         panic("A")
@@ -207,7 +208,7 @@ func initGL(ton, lon, son bool, paths ...string) (err error) {
         fmt.Printf("err=0x%x, gl.NO_ERROR=%d\n", e, gl.NO_ERROR)
         panic("B")
     }
-    fmt.Printf("initScene: SHADING_LANGUAGE_VERSION=%s, ton=%v, lon=%v, son=%v, paths=%q\n", s, ton, lon, son, paths)
+    fmt.Printf("initScene: OGL VERSION=%s, SHADING_LANGUAGE_VERSION=%s, ton=%v, lon=%v, son=%v, paths=%q\n", glv, shv, ton, lon, son, paths)
     //gl.Enable(gl.DEPTH_TEST)
     //gl.ClearDepth(1)
     //gl.DepthFunc(gl.LEQUAL)
@@ -293,7 +294,7 @@ func rect(x1, y1, x2, y2 float32) {
         //gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
         gl.DrawArrays(gl.TRIANGLES, 0, 3)
         if e := gl.GetError(); e != gl.NO_ERROR {
-            panic("gl.DrawArrays")
+            panic("gl.DrawArrays"+fmt.Sprintf("; e=0x%x", e))
         }
     }
 }
@@ -317,6 +318,17 @@ func initScene() {
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#0"+fmt.Sprintf("; e=0x%x", e))
         }
+
+        //gl.GenVertexArrays(vao)
+        vao := gl.GenVertexArray()
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("#7")
+        }
+        vao.Bind()
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("#8")
+        }
+
         vbo := gl.GenBuffer()
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#1")
@@ -329,7 +341,7 @@ func initScene() {
 
         floatSize := unsafe.Sizeof(float32(0.0))
         fmt.Printf("floatSize=%d\n", floatSize)
-        gl.BufferData(gl.ARRAY_BUFFER, int(floatSize) * len(tri), tri, gl.STATIC_DRAW)
+        gl.BufferData(gl.ARRAY_BUFFER, int(floatSize) * len(tri), tri, gl.STATIC_READ) // STATIC_DRAW
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#3") 
         }
@@ -346,26 +358,37 @@ func initScene() {
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#4")
         }
+        fmt.Printf("posattr=%d\n", posattr)
 
-        posattr.AttribPointer(2, gl.FLOAT, false, 0, nil)
+        posattr.EnableArray()
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#5"+fmt.Sprintf("; e=0x%x", e))
         }
 
-        posattr.EnableArray()
+        posattr.AttribPointer(2, gl.FLOAT, false, 0, nil)
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#6"+fmt.Sprintf("; e=0x%x", e))
         }
 
-        //gl.GenVertexArrays(vao)
-        vao := gl.GenVertexArray()
+/*
+        colattr := fshader.GetAttribLocation("color") // indx AttribLocation
         if e := gl.GetError(); e != gl.NO_ERROR {
-            panic("#7")
+            panic("#8"+fmt.Sprintf("; e=0x%x", e))
         }
-        vao.Bind()
+
+        colattr.EnableArray()
         if e := gl.GetError(); e != gl.NO_ERROR {
-            panic("#8")
+            panic("#9"+fmt.Sprintf("; e=0x%x", e))
         }
+
+        colattr.AttribPointer(3, gl.FLOAT, false, 5 * int(floatSize), interface{}(2 * int(floatSize)))
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("#10"+fmt.Sprintf("; e=0x%x", e))
+        }
+*/
+
+
+
     }
 }
 
