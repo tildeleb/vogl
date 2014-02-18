@@ -3,17 +3,16 @@ package main
 
 import (
 //  "errors"
-  "fmt"
-  "flag"
-  "github.com/go-gl/gl"
-  glfw "github.com/go-gl/glfw3"
+    "fmt"
+    "flag"
+    "os"
+    "unsafe"
+    "io/ioutil"
+    "github.com/go-gl/gl"
+    glfw "github.com/go-gl/glfw3"
 //  "image"
  // "image/png"
  // "io"
-  "os"
-  "unsafe"
-//    gl "github.com/go-gl/gl"
-    "io/ioutil"
 )
 
 var texturef = flag.Bool("t", false, "turn on textures")
@@ -383,7 +382,7 @@ func initScene() {
             panic("#6"+fmt.Sprintf("; e=0x%x", e))
         }
 
-        gl.DrawArrays(gl.TRIANGLES, 0, 3)
+        gl.DrawArrays(gl.TRIANGLES, 0, 3) // POINTS
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#7: gl.DrawArrays"+fmt.Sprintf("; e=0x%x", e))
         }
@@ -429,6 +428,7 @@ func drawScene() {
 }
 
 func main() {
+    var path string
 
     flag.Parse()
     for i := 0; i < flag.NArg(); i++ {
@@ -458,7 +458,12 @@ func main() {
     glfw.SwapInterval(1)
     gl.Init()
 
-    if err := initGL(*texturef, *lightf, *shaderf, paths[0]); err != nil {
+    if len(paths) == 0 {
+        path = ""
+    } else {
+        path = paths[0]
+    }
+    if err := initGL(*texturef, *lightf, *shaderf, path); err != nil {
         fmt.Fprintf(os.Stderr, "initGL: %s\n", err)
         return
     }
