@@ -35,6 +35,19 @@ var (
     lightpos   []float32 = []float32{-5, 5, 10, 0}
 )
 
+var quad []float32 = []float32{
+-1.0,   -1.0,
+-1.0,    1.0,
+ 1.0,   -1.0,
+ 1.0,    1.0,
+}
+
+var tri []float32 = []float32{
+     0.0,  0.5,
+     0.5, -0.5,
+    -0.5, -0.5,
+}
+
 func errorCallback(err glfw.ErrorCode, desc string) {
     fmt.Printf("%v: %v\n", err, desc)
 }
@@ -79,22 +92,14 @@ func compileShader(source string, shaderType gl.GLenum) gl.Shader {
     return shader
 }
 
-func CompileShader(shaderSource string, shaderType gl.GLenum) gl.Program {
-    shader := compileShader(shaderSource, shaderType)
 
-    program := gl.CreateProgram()
-    program.AttachShader(shader)
-    // need to allow binding before linking
-    // glBindFragDataLocation(shaderProgram, 0, "outColor");
-    return program
-}
-
-func CompileShaderFromPath(shaderPath string, shaderType gl.GLenum) gl.Program {
+func CompileShaderFromPath(shaderPath string, shaderType gl.GLenum) gl.Shader {
     shaderSource, err := ioutil.ReadFile(shaderPath)
     if err != nil {
         panic("LoadShaderFromPath: Unable to load shader from " + shaderPath)
     }
-    return CompileShader(string(shaderSource), shaderType)
+    shader := compileShader(string(shaderSource), shaderType)
+    return shader
 }
 
 func Link(program gl.Program) {
@@ -180,6 +185,17 @@ func sickRed() (gl.GLclampf, gl.GLclampf, gl.GLclampf, gl.GLclampf) {
     return 0.8, 0.3, 0.3, 0.0
 }
 
+func ec(...string) {
+    // clear errors
+    for {
+        if e := gl.GetError(); e != gl.NO_ERROR {
+            panic("%s"+fmt.Sprintf("; e=0x%x", e))
+        } else {
+            break
+        }
+    }
+}
+
 func initGL(ton, lon, son bool, paths ...string) (err error) {
     var opt gl.GLbitfield = gl.COLOR_BUFFER_BIT // | gl.DEPTH_BUFFER_BIT
 
@@ -223,9 +239,11 @@ func initGL(ton, lon, son bool, paths ...string) (err error) {
         if len(paths) == 0 {
             panic("initScene: no shader paths")
         }
-        shader := CompileShaderFromPath(paths[0], gl.FRAGMENT_SHADER) // gl.VERTEX_SHADER
-        shader.Link()
-        shader.Use()
+        program := gl.CreateProgram()
+        fshader := CompileShaderFromPath(paths[0], gl.FRAGMENT_SHADER) // gl.VERTEX_SHADER
+        program.AttachShader(fshader)
+        Link(program)
+        program.Use()
     }
 
     if *compatf {
@@ -244,19 +262,6 @@ func initGL(ton, lon, son bool, paths ...string) (err error) {
     }
     gl.Clear(opt)
     return
-}
-
-var quad []float32 = []float32{
-     -1.0,  -1.0,
-     -1.0,  1.0,
-     1.0,   -1,0,
-     1.0,   1.0,
-}
-
-var tri []float32 = []float32{
-     0.0,  0.5,
-     0.5, -0.5,
-    -0.5, -0.5,
 }
 
 func rect(x1, y1, x2, y2 float32) {
@@ -287,7 +292,7 @@ func rect(x1, y1, x2, y2 float32) {
         }
     } else {
         //gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
-        gl.DrawArrays(gl.TRIANGLES, 0, 3)
+        gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4) // TRIANGLES
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("gl.DrawArrays"+fmt.Sprintf("; e=0x%x", e))
         }
@@ -344,29 +349,33 @@ func initScene() {
         }
 
         floatSize := unsafe.Sizeof(float32(0.0))
-        fmt.Printf("floatSize=%d, len(tri)=%d\n", floatSize, len(tri))
-        gl.BufferData(gl.ARRAY_BUFFER, int(floatSize) * len(tri), tri, gl.STATIC_READ) // STATIC_DRAW
+        fmt.Printf("floatSize=%d, len(quad)=%d, quad=%v\n", floatSize, len(quad), quad)
+        gl.BufferData(gl.ARRAY_BUFFER, int(floatSize) * len(quad), quad, gl.STATIC_DRAW) // STATIC_DRAW STATIC_READ
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#3") 
         }
 
-        result := make([]float32, len(tri))
-        gl.GetBufferSubData(gl.ARRAY_BUFFER, 0, int(floatSize) * len(tri), result)
+        result := make([]float32, len(quad))
+        gl.GetBufferSubData(gl.ARRAY_BUFFER, 0, int(floatSize) * len(quad), result)
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#3a"+fmt.Sprintf("; e=0x%x", e))
         }
         fmt.Printf("len(result)=%d, result: %.02f\n", len(result), result)
 
         vbo.Bind(gl.ARRAY_BUFFER)
-        vshader := CompileShaderFromPath("./shaders/bare.vert", gl.VERTEX_SHADER)
-        Link(vshader)
-        vshader.Use()
-        fshader := CompileShaderFromPath("./shaders/white2.frag", gl.FRAGMENT_SHADER)
-        fshader.BindFragDataLocation(0, "outColor")
-        Link(fshader)
-        fshader.Use()
 
-        posattr := vshader.GetAttribLocation("position") // indx AttribLocation
+        program := gl.CreateProgram()
+        vshader := CompileShaderFromPath("./shaders/bare.vert", gl.VERTEX_SHADER)
+        program.AttachShader(vshader)
+
+        fshader := CompileShaderFromPath("./shaders/white2.frag", gl.FRAGMENT_SHADER)
+        program.AttachShader(fshader)
+
+        program.BindFragDataLocation(0, "outColor")
+        Link(program)
+        program.Use()
+
+        posattr := program.GetAttribLocation("position") // indx AttribLocation
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#4")
         }
@@ -381,12 +390,12 @@ func initScene() {
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#6"+fmt.Sprintf("; e=0x%x", e))
         }
-
+/*
         gl.DrawArrays(gl.TRIANGLES, 0, 3) // POINTS
         if e := gl.GetError(); e != gl.NO_ERROR {
             panic("#7: gl.DrawArrays"+fmt.Sprintf("; e=0x%x", e))
         }
-
+*/
 /*
         colattr := fshader.GetAttribLocation("color") // indx AttribLocation
         if e := gl.GetError(); e != gl.NO_ERROR {
@@ -430,6 +439,7 @@ func drawScene() {
 func main() {
     var path string
 
+    fmt.Printf("len(quad)=%d, quad=%v\n", len(quad), quad)
     flag.Parse()
     for i := 0; i < flag.NArg(); i++ {
         //fmt.Printf("arg %d=|%s|\n", i, flag.Arg(i))
